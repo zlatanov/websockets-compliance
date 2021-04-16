@@ -11,3 +11,6 @@
 and run the following: `CoreRun.exe "path\to\bin\release\net5.0\WebSocketCompliance.dll"`
 9. After the tests complete, go into the cloned autobahn-testsuite directory, where in step `4.` we ran a docker command. You will find `reports/client` directory
 where you need to open index.html to see the results from the test run.
+
+If you wish to run only some of the test cases you can specify them as arguments like this: 
+`CoreRun.exe "path\to\bin\release\net5.0\WebSocketCompliance.dll" 1 50-100`
