@@ -1,4 +1,7 @@
-﻿using System;
+﻿using Microsoft.AspNetCore;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.WebSockets;
@@ -15,6 +18,46 @@ namespace WebSocketCompliance
         private static readonly Uri BaseUri = new("ws://127.0.0.1:9001");
 
         static async Task Main(string[] args)
+        {
+            if (args.Any(x => x == "client"))
+            {
+                await RunClientAsync(args.Where(x => x != "client").ToArray());
+            }
+            else
+            {
+                await RunServerAsync(args);
+            }
+        }
+
+        static async Task RunServerAsync(string[] args)
+        {
+            var builder = WebHost.CreateDefaultBuilder(args).Configure(app =>
+            {
+                app.UseMiddleware<WebSocketServerMiddleware>();
+                app.Run(async x =>
+                {
+                    using var websocket = await x.WebSockets.AcceptWebSocketAsync();
+                    Memory<byte> buffer = new byte[16 * 1024];
+
+                    while (true)
+                    {
+                        var result = await websocket.ReceiveAsync(buffer, x.RequestAborted);
+
+                        if (result.MessageType == WebSocketMessageType.Close)
+                        {
+                            await websocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, default);
+                            break;
+                        }
+
+                        await websocket.SendAsync(buffer.Slice(0, result.Count), result.MessageType, result.EndOfMessage, x.RequestAborted);
+                    }
+                });
+            });
+
+            await builder.Build().RunAsync();
+        }
+
+        static async Task RunClientAsync(string[] args)
         {
             object deflateOptions = Activator.CreateInstance(typeof(WebSocket).Assembly.GetType("System.Net.WebSockets.WebSocketDeflateOptions"));
             PropertyInfo deflateOptionsProperty = typeof(ClientWebSocketOptions).GetProperty("DangerousDeflateOptions");
